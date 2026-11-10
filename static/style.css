@@ -22,31 +22,70 @@ body {
 }
 
 header,
-.layout {
-  max-width: 1040px;
-  margin: 0 auto;
+.layout,
+.goal-strip {
+  max-width: 1280px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
-header {
+.site-header {
   margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--line);
 }
 
 h1 {
-  margin: 0 0 6px;
-  font-size: clamp(1.5rem, 3vw, 2rem);
+  margin: 0 0 4px;
+  font-size: clamp(1.35rem, 2.4vw, 1.85rem);
   color: var(--navy);
 }
 
-header p {
+.site-header p {
   margin: 0;
   color: var(--muted);
 }
 
+.course-badge {
+  margin: 0;
+  padding: 10px 16px;
+  color: var(--blue) !important;
+  background: #e8f2fa;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-align: right;
+}
+
 .layout {
   display: grid;
-  grid-template-columns: minmax(300px, 420px) minmax(320px, 1fr);
+  grid-template-columns: minmax(300px, 360px) minmax(360px, 1fr) minmax(300px, 340px);
   gap: 20px;
   align-items: start;
+}
+
+.goal-strip {
+  margin-top: 20px;
+  padding: 14px 20px;
+  background: #e8f2fa;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.goal-strip h2 {
+  margin: 0 0 4px;
+  font-size: 1rem;
+  color: var(--blue);
+}
+
+.goal-strip p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.92rem;
 }
 
 .card {
@@ -187,9 +226,24 @@ tbody tr:last-child td {
   font-size: 0.95rem;
 }
 
+@media (max-width: 1099px) {
+  .layout {
+    grid-template-columns: minmax(300px, 360px) minmax(360px, 1fr);
+  }
+}
+
 @media (max-width: 760px) {
   .layout {
     grid-template-columns: 1fr;
+  }
+
+  .site-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .course-badge {
+    text-align: left;
   }
 
   .field input,

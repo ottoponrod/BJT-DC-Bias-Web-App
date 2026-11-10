@@ -78,5 +78,12 @@ class WebTests(unittest.TestCase):
         self.assertIn("จำนวนจำกัด".encode(), response.data)
 
 
+    def test_page_has_header_and_goal_strip(self):
+        response = self.client.get("/")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b'class="site-header"', response.data)
+        self.assertIn(b'class="goal-strip"', response.data)
+
+
 if __name__ == "__main__":
     unittest.main()
