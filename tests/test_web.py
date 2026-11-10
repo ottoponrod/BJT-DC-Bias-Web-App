@@ -92,5 +92,17 @@ class WebTests(unittest.TestCase):
         self.assertIn(b'class="goal-strip"', response.data)
 
 
+    def test_circuit_svg_uses_form_values(self):
+        response = self.client.post("/calculate", data={**VALID, "r1": "47", "rc": "3.3"})
+        self.assertIn(b"<svg", response.data)
+        self.assertIn(b'id="c-r1"', response.data)
+        self.assertIn("47 kΩ".encode(), response.data)
+        self.assertIn("3.3 kΩ".encode(), response.data)
+
+    def test_page_loads_live_label_script(self):
+        response = self.client.get("/")
+        self.assertIn(b"app.js", response.data)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -191,6 +191,49 @@ button:hover {
   border-color: #c0392b;
 }
 
+.circuit {
+  width: 100%;
+  height: auto;
+  max-height: 420px;
+}
+
+.circuit .wire {
+  stroke: var(--ink);
+  stroke-width: 2;
+  fill: none;
+}
+
+.circuit .res {
+  fill: #fff;
+  stroke: var(--ink);
+  stroke-width: 2;
+}
+
+.circuit .dev {
+  fill: #e8f2fa;
+  stroke: var(--ink);
+  stroke-width: 2;
+}
+
+.circuit .arrow {
+  fill: var(--ink);
+}
+
+.circuit .lbl {
+  fill: var(--ink);
+  font-size: 11px;
+  font-family: inherit;
+}
+
+.circuit .lbl.small {
+  fill: var(--muted);
+  font-size: 9px;
+}
+
+.circuit .lbl.end {
+  text-anchor: end;
+}
+
 table {
   width: 100%;
   border-collapse: collapse;

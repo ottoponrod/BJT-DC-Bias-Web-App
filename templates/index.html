@@ -64,6 +64,52 @@
   </form>
 
   <section class="card">
+    <h2>Circuit: Common-Emitter Amplifier</h2>
+    <svg class="circuit" viewBox="0 0 400 360" role="img"
+         aria-label="วงจร Common-Emitter แบบ Voltage-Divider Bias">
+      <line x1="90" y1="40" x2="270" y2="40" class="wire"/>
+      <text x="110" y="18" class="lbl small">VCC</text>
+      <text x="110" y="32" class="lbl" id="c-vcc">{{ form.vcc }} V</text>
+
+      <line x1="90" y1="40" x2="90" y2="70" class="wire"/>
+      <rect x="80" y="70" width="20" height="60" class="res"/>
+      <line x1="90" y1="130" x2="90" y2="200" class="wire"/>
+      <text x="72" y="104" class="lbl end" id="c-r1">R1 = {{ form.r1 }} {{ unit_label }}</text>
+
+      <line x1="90" y1="200" x2="90" y2="225" class="wire"/>
+      <rect x="80" y="225" width="20" height="60" class="res"/>
+      <line x1="90" y1="285" x2="90" y2="330" class="wire"/>
+      <text x="72" y="259" class="lbl end" id="c-r2">R2 = {{ form.r2 }} {{ unit_label }}</text>
+
+      <line x1="90" y1="200" x2="166" y2="200" class="wire"/>
+
+      <circle cx="190" cy="200" r="26" class="dev"/>
+      <line x1="166" y1="180" x2="166" y2="220" class="wire"/>
+      <line x1="166" y1="188" x2="216" y2="172" class="wire"/>
+      <line x1="166" y1="212" x2="216" y2="228" class="wire"/>
+      <polygon points="216,228 202,224 208,213" class="arrow"/>
+      <text x="224" y="206" class="lbl" id="c-beta">β = {{ form.beta }}</text>
+
+      <line x1="216" y1="172" x2="270" y2="172" class="wire"/>
+      <line x1="270" y1="172" x2="270" y2="130" class="wire"/>
+      <rect x="260" y="70" width="20" height="60" class="res"/>
+      <line x1="270" y1="70" x2="270" y2="40" class="wire"/>
+      <text x="288" y="104" class="lbl" id="c-rc">RC = {{ form.rc }} {{ unit_label }}</text>
+
+      <line x1="216" y1="228" x2="270" y2="228" class="wire"/>
+      <line x1="270" y1="228" x2="270" y2="255" class="wire"/>
+      <rect x="260" y="255" width="20" height="60" class="res"/>
+      <line x1="270" y1="315" x2="270" y2="330" class="wire"/>
+      <text x="288" y="289" class="lbl" id="c-re">RE = {{ form.re }} {{ unit_label }}</text>
+
+      <line x1="90" y1="330" x2="270" y2="330" class="wire"/>
+      <line x1="162" y1="336" x2="198" y2="336" class="wire"/>
+      <line x1="168" y1="344" x2="192" y2="344" class="wire"/>
+      <line x1="174" y1="352" x2="186" y2="352" class="wire"/>
+    </svg>
+  </section>
+
+  <section class="card">
     <h2>ผลลัพธ์ DC Bias</h2>
 
     {% if result %}
@@ -115,5 +161,6 @@
      (VB, VE, VC, VCE, IB, IC, IE) ของวงจร Common-Emitter
      แบบ Voltage-Divider Bias แล้วแสดงผลพร้อมหน่วย</p>
 </footer>
+<script src="{{ url_for('static', filename='app.js') }}" defer></script>
 </body>
 </html>
