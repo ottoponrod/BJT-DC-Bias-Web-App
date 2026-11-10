@@ -51,10 +51,17 @@ class WebTests(unittest.TestCase):
     def test_results_show_units_and_warning(self):
         response = self.client.post("/calculate", data={**VALID, "re": "0.1"})
         self.assertEqual(response.status_code, 200)
-        self.assertIn(b'class="region-badge"', response.data)
+        self.assertIn(b'class="region-banner"', response.data)
         self.assertIn(b'class="warning"', response.data)
         self.assertIn("Saturation".encode(), response.data)
         self.assertIn(b"mA", response.data)
+
+    def test_active_region_shows_banner_with_reason(self):
+        response = self.client.post("/calculate", data=VALID)
+        self.assertIn(b'class="region-banner"', response.data)
+        self.assertIn(b'data-region="active"', response.data)
+        self.assertIn(b"Active region approximation OK", response.data)
+        self.assertIn(b"8.052", response.data)
 
 
     def test_ohm_unit_is_honoured(self):

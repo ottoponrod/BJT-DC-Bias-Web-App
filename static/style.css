@@ -157,28 +157,38 @@ button:hover {
   border-radius: 0 6px 6px 0;
 }
 
-.region-badge {
-  display: inline-block;
-  padding: 3px 10px;
-  border-radius: 999px;
-  font-size: 0.85rem;
-  letter-spacing: 0.02em;
+.region-banner {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0 0 16px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  border-left: 5px solid;
+  font-size: 0.92rem;
 }
 
-.region-badge[data-region="active"] {
+.region-banner strong {
+  font-size: 1rem;
+}
+
+.region-banner[data-region="active"] {
   color: #0b6157;
   background: #e2f5f0;
+  border-color: #0c8078;
 }
 
-.region-badge[data-region="near-saturation"] {
+.region-banner[data-region="near-saturation"] {
   color: #7a5b00;
   background: #fdf2cf;
+  border-color: #d9a800;
 }
 
-.region-badge[data-region="saturation"],
-.region-badge[data-region="cutoff"] {
+.region-banner[data-region="saturation"],
+.region-banner[data-region="cutoff"] {
   color: #8f2318;
   background: #fbe3e0;
+  border-color: #c0392b;
 }
 
 table {

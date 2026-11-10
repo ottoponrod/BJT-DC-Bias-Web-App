@@ -7,12 +7,6 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-{% set region_labels = {
-  "active": "Active",
-  "near-saturation": "Near-saturation",
-  "saturation": "Saturation",
-  "cutoff": "Cutoff",
-} %}
 
 <header class="site-header">
   <div class="brand">
@@ -73,10 +67,22 @@
     <h2>ผลลัพธ์ DC Bias</h2>
 
     {% if result %}
-    <p>
-      สถานะการทำงาน:
-      <strong class="region-badge" data-region="{{ result.region }}">{{ region_labels[result.region] }}</strong>
-    </p>
+    {% set reason = {
+      "active": "VCE = %.3f V > 1.0 V (transistor in active region)"|format(result.vce),
+      "near-saturation": "0.3 V < VCE = %.3f V < 1.0 V"|format(result.vce),
+      "saturation": "VCE = %.3f V ≤ 0.3 V"|format(result.vce),
+      "cutoff": "VTH = %.3f V ≤ VBE = %.2f V"|format(result.vth, form.vbe|float),
+    } %}
+    {% set title = {
+      "active": "Active region approximation OK",
+      "near-saturation": "Near-saturation — ตรวจสอบซ้ำ",
+      "saturation": "Saturation — แบบจำลอง Forward-Active ใช้ไม่ได้",
+      "cutoff": "Cutoff — วงจรอยู่ในสภาวะ OFF",
+    } %}
+    <div class="region-banner" data-region="{{ result.region }}">
+      <strong>{{ title[result.region] }}</strong>
+      <span>{{ reason[result.region] }}</span>
+    </div>
 
     <table>
       <tbody>
