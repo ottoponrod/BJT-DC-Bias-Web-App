@@ -104,5 +104,11 @@ class WebTests(unittest.TestCase):
         self.assertIn(b"app.js", response.data)
 
 
+    def test_stylesheet_guards_long_numbers(self):
+        from pathlib import Path
+        css = Path("static/style.css").read_text(encoding="utf-8")
+        self.assertIn("overflow-wrap: anywhere", css)
+
+
 if __name__ == "__main__":
     unittest.main()
