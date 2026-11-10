@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>BJT DC Bias Calculator | ENG29 2121</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+{% set region_labels = {
+  "active": "Active",
+  "near-saturation": "Near-saturation",
+  "saturation": "Saturation",
+  "cutoff": "Cutoff",
+} %}
+
+<header>
+  <h1>BJT DC Bias Calculator</h1>
+  <p>วงจร Common-Emitter แบบ Voltage-Divider Bias (Forward-Active Approximation)</p>
+</header>
+
+<main class="layout">
+  <form class="card" method="post" action="/calculate">
+    <h2>ค่าอุปกรณ์</h2>
+
+    {% if error %}
+    <p class="alert" role="alert">{{ error }}</p>
+    {% endif %}
+
+    <div class="field">
+      <label for="vcc">VCC [V]</label>
+      <input id="vcc" name="vcc" value="{{ form.vcc }}" inputmode="decimal">
+    </div>
+    <div class="field">
+      <label for="r1">R1 [{{ unit_label }}]</label>
+      <input id="r1" name="r1" value="{{ form.r1 }}" inputmode="decimal">
+    </div>
+    <div class="field">
+      <label for="r2">R2 [{{ unit_label }}]</label>
+      <input id="r2" name="r2" value="{{ form.r2 }}" inputmode="decimal">
+    </div>
+    <div class="field">
+      <label for="rc">RC [{{ unit_label }}]</label>
+      <input id="rc" name="rc" value="{{ form.rc }}" inputmode="decimal">
+    </div>
+    <div class="field">
+      <label for="re">RE [{{ unit_label }}]</label>
+      <input id="re" name="re" value="{{ form.re }}" inputmode="decimal">
+    </div>
+    <div class="field">
+      <label for="beta">β (hFE)</label>
+      <input id="beta" name="beta" value="{{ form.beta }}" inputmode="decimal">
+    </div>
+    <div class="field">
+      <label for="vbe">VBE [V]</label>
+      <input id="vbe" name="vbe" value="{{ form.vbe }}" inputmode="decimal">
+    </div>
+    <div class="field">
+      <label for="unit">หน่วยตัวต้านทาน</label>
+      <select id="unit" name="unit">
+        <option value="kilo" {% if form.unit != "ohm" %}selected{% endif %}>kΩ</option>
+        <option value="ohm" {% if form.unit == "ohm" %}selected{% endif %}>Ω</option>
+      </select>
+    </div>
+
+    <button type="submit">Calculate DC Bias</button>
+  </form>
+
+  <section class="card">
+    <h2>ผลลัพธ์ DC Bias</h2>
+
+    {% if result %}
+    <p>
+      สถานะการทำงาน:
+      <strong class="region-badge" data-region="{{ result.region }}">{{ region_labels[result.region] }}</strong>
+    </p>
+
+    <table>
+      <tbody>
+        <tr><th scope="row">VB</th><td>{{ "%.3f"|format(result.vb) }} V</td></tr>
+        <tr><th scope="row">VE</th><td>{{ "%.3f"|format(result.ve) }} V</td></tr>
+        <tr><th scope="row">VC</th><td>{{ "%.3f"|format(result.vc) }} V</td></tr>
+        <tr><th scope="row">VCE</th><td>{{ "%.3f"|format(result.vce) }} V</td></tr>
+        <tr><th scope="row">IC</th><td>{{ "%.3f"|format(result.ic * 1000) }} mA</td></tr>
+        <tr><th scope="row">IB</th><td>{{ "%.3f"|format(result.ib * 1e6) }} µA</td></tr>
+        <tr><th scope="row">IE</th><td>{{ "%.3f"|format(result.ie * 1000) }} mA</td></tr>
+      </tbody>
+    </table>
+
+    {% if result.warnings %}
+    <ul class="warnings">
+      {% for warning in result.warnings %}
+      <li class="warning">{{ warning }}</li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+    {% else %}
+    <p class="placeholder">กรอกค่าอุปกรณ์แล้วกด Calculate DC Bias เพื่อดูผลลัพธ์</p>
+    {% endif %}
+  </section>
+</main>
+</body>
+</html>

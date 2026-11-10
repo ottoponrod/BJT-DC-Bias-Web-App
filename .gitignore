@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+ENV/
+*.egg-info/
+
+# Secrets / local environment
+.env
+.env.*
+.flaskenv
+
+# Test & coverage artefacts
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Runtime artefacts
+*.log
+instance/
+
+# Agent workspace (superpowers plan scratch)
+.superpowers/
