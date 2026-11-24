@@ -296,6 +296,151 @@
   </section>
 </main>
 
+<section class="sim-section" aria-labelledby="sim-heading">
+  <div class="sim-head">
+    <h2 id="sim-heading">Lab 04: BJT CE Amplifier Simulator</h2>
+    <p class="provenance">
+      <strong>Analytical (Lab 03)</strong> results above come from
+      <code>dc_bias.py</code> (β / VBE approximation).
+      <strong>SPICE</strong> results below come only from real
+      <code>ngspice 47</code> runs using model
+      <code>QNPN NPN(BF=100 IS=1e-14 VAF=100)</code> — a self-defined
+      reference model, not an instructor-supplied model.
+    </p>
+  </div>
+
+  <div class="sim-grid">
+    <form class="card sim-form" method="post" action="/simulate">
+      <h3>SPICE setup</h3>
+
+      {% if sim_error %}
+      <p class="alert" role="alert">{{ sim_error }}</p>
+      {% endif %}
+
+      <div class="field">
+        <label for="sim_analysis">Analysis</label>
+        <select id="sim_analysis" name="sim_analysis">
+          <option value="dc" {% if analysis == "dc" %}selected{% endif %}>DC operating point (.op)</option>
+          <option value="ac" {% if analysis == "ac" %}selected{% endif %}>Frequency response (.ac)</option>
+          <option value="transient" {% if analysis == "transient" %}selected{% endif %}>Time domain (.tran)</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="sim_vcc">VCC [V]</label>
+        <input id="sim_vcc" name="sim_vcc" value="{{ sim_form.vcc }}" inputmode="decimal">
+      </div>
+      {% for field, label in [
+          ("r1", "R1"), ("r2", "R2"), ("rc", "RC"),
+          ("re", "RE"), ("rl", "RL")
+      ] %}
+      <div class="field">
+        <label for="sim_{{ field }}">{{ label }}
+          [{{ "kΩ" if sim_form.sim_unit == "kilo" else "Ω" }}]</label>
+        <input id="sim_{{ field }}" name="sim_{{ field }}"
+               value="{{ sim_form[field] }}" inputmode="decimal">
+      </div>
+      {% endfor %}
+
+      <div class="field">
+        <label for="sim_cin">CIN [µF]</label>
+        <input id="sim_cin" name="sim_cin" value="{{ sim_form.cin }}" inputmode="decimal">
+      </div>
+      <div class="field">
+        <label for="sim_cout">COUT [µF]</label>
+        <input id="sim_cout" name="sim_cout" value="{{ sim_form.cout }}" inputmode="decimal">
+      </div>
+      <div class="field">
+        <label for="sim_amplitude">Source amplitude [mV peak]</label>
+        <input id="sim_amplitude" name="sim_amplitude"
+               value="{{ sim_form.amplitude }}" inputmode="decimal">
+      </div>
+      <div class="field">
+        <label for="sim_frequency">Source frequency [kHz]</label>
+        <input id="sim_frequency" name="sim_frequency"
+               value="{{ sim_form.frequency }}" inputmode="decimal">
+      </div>
+      <div class="field">
+        <label for="sim_unit">Resistor unit</label>
+        <select id="sim_unit" name="sim_unit">
+          <option value="kilo" {% if sim_form.sim_unit != "ohm" %}selected{% endif %}>kΩ</option>
+          <option value="ohm" {% if sim_form.sim_unit == "ohm" %}selected{% endif %}>Ω</option>
+        </select>
+      </div>
+
+      <div class="actions">
+        <button type="submit">Run Simulation</button>
+      </div>
+    </form>
+
+    <div class="card sim-results"
+         data-sim-state="{% if sim_error %}error{% elif sim_result %}success{% else %}idle{% endif %}">
+      <h3>SPICE results</h3>
+      <p class="sim-status"
+         data-state="{% if sim_error %}error{% elif sim_result %}success{% else %}idle{% endif %}"
+         id="sim-status">{{ sim_status }}</p>
+
+      {% if sim_error %}
+      <p class="alert sim-alert" role="alert">{{ sim_error }}</p>
+      {% endif %}
+
+      {% if sim_result %}
+      <p class="result-source">
+        Source: <strong>SPICE (ngspice 47)</strong> —
+        {{ sim_result.model }} — analysis <code>{{ sim_result.analysis }}</code>
+      </p>
+
+      {% if sim_result.op %}
+      <h4>DC operating point <span class="source-tag">ngspice .op</span></h4>
+      <table class="spice-table">
+        <tbody>
+          <tr><th scope="row">VB</th><td id="spice-vb">{{ "%.3f"|format(sim_result.summary.vb) }} V</td></tr>
+          <tr><th scope="row">VE</th><td id="spice-ve">{{ "%.3f"|format(sim_result.summary.ve) }} V</td></tr>
+          <tr><th scope="row">VC</th><td id="spice-vc">{{ "%.3f"|format(sim_result.summary.vc) }} V</td></tr>
+          <tr><th scope="row">VCE</th><td id="spice-vce">{{ "%.3f"|format(sim_result.summary.vce) }} V</td></tr>
+          <tr><th scope="row">IC</th><td id="spice-ic">{{ "%.3f"|format(sim_result.summary.ic_ma) }} mA</td></tr>
+        </tbody>
+      </table>
+      <p class="derived-note">IC = (VCC − VC) / RC, computed from ngspice node voltages.</p>
+      {% endif %}
+
+      {% if sim_result.ac %}
+      <h4>Frequency response <span class="source-tag">ngspice .ac</span></h4>
+      <p class="cutoff" id="spice-cutoff">
+        {% if sim_result.summary.f3db_hz is none %}
+        -3 dB point: not determined in sweep range
+        {% else %}
+        -3 dB point: {{ "%.2f"|format(sim_result.summary.f3db_hz) }} Hz
+        {% endif %}
+      </p>
+      <p class="derived-note">
+        Gain is relative to the {{ "%.1f"|format(sim_result.summary.source_amplitude_v * 1000) }} mV
+        source; SPICE phase is converted from radians to degrees.
+      </p>
+      {% if sim_plots.bode %}{{ sim_plots.bode|safe }}{% endif %}
+      {% endif %}
+
+      {% if sim_result.tran %}
+      <h4>Time domain <span class="source-tag">ngspice .tran</span></h4>
+      <p class="derived-note">
+        Peak Vin {{ "%.2f"|format(sim_result.summary.peak_vin_v * 1000) }} mV,
+        peak Vout {{ "%.2f"|format(sim_result.summary.peak_vout_v * 1000) }} mV.
+      </p>
+      {% if sim_plots.transient %}{{ sim_plots.transient|safe }}{% endif %}
+      {% endif %}
+
+      <details class="netlist">
+        <summary>Netlist and log excerpt (reproducibility)</summary>
+        <pre>{{ sim_result.netlist }}</pre>
+        <pre>{{ sim_result.log_excerpt }}</pre>
+      </details>
+      {% else %}
+      <p class="placeholder">เลือก analysis แล้วกด Run Simulation เพื่อดูผลจาก ngspice จริง</p>
+      {% endif %}
+    </div>
+  </div>
+</section>
+
 <footer class="goal-strip">
   <h2>Week 3 Goal</h2>
   <p>เพิ่มโหมดไบอัสให้เว็บแอปเดิม: Voltage Divider, Fixed Bias และ Emitter Bias

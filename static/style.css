@@ -340,3 +340,189 @@ tbody tr:last-child td {
     font-size: 0.88rem;
   }
 }
+
+/* Lab 04 — SPICE simulation panel (kept separate from Lab 03 layout). */
+.sim-section {
+  max-width: 1280px;
+  margin: 24px auto 0;
+  padding-top: 20px;
+  border-top: 2px solid var(--line);
+}
+
+.sim-head {
+  margin-bottom: 16px;
+}
+
+.sim-head h2 {
+  margin: 0 0 6px;
+  font-size: 1.25rem;
+  color: var(--navy);
+}
+
+.provenance {
+  max-width: 900px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.provenance code,
+.result-source code,
+.netlist pre {
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 0.88em;
+}
+
+.sim-grid {
+  display: grid;
+  grid-template-columns: minmax(300px, 360px) minmax(420px, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+
+.sim-form h3,
+.sim-results h3 {
+  margin: 0 0 12px;
+  color: var(--blue);
+  font-size: 1.05rem;
+}
+
+.sim-results h4 {
+  margin: 20px 0 8px;
+  color: var(--navy);
+  font-size: 0.98rem;
+}
+
+.sim-status {
+  margin: 0 0 14px;
+  padding: 8px 12px;
+  border-left: 4px solid var(--line);
+  border-radius: 0 6px 6px 0;
+  background: #f2f6fa;
+  color: var(--muted);
+  font-size: 0.84rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.sim-status[data-state="success"] {
+  color: #0b6157;
+  background: #e2f5f0;
+  border-left-color: #0c8078;
+}
+
+.sim-status[data-state="error"] {
+  color: #8a2f12;
+  background: #fdeee6;
+  border-left-color: var(--orange);
+}
+
+.sim-alert {
+  margin-bottom: 12px;
+}
+
+.result-source {
+  margin: 0 0 8px;
+  font-size: 0.9rem;
+}
+
+.source-tag {
+  margin-left: 6px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #e8f2fa;
+  color: var(--blue);
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.spice-table {
+  margin-bottom: 8px;
+}
+
+.derived-note,
+.cutoff {
+  margin: 6px 0;
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+
+.cutoff {
+  padding: 8px 12px;
+  background: #f2f6fa;
+  border-radius: 6px;
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.plot {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin-top: 10px;
+}
+
+.plot-bg {
+  fill: #fff;
+}
+
+.plot .grid {
+  stroke: #dbe6f0;
+  stroke-width: 1;
+}
+
+.plot .tick {
+  fill: var(--muted);
+  font-size: 11px;
+  font-family: inherit;
+}
+
+.plot .axis-label {
+  fill: var(--ink);
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
+}
+
+.plot .line-gain,
+.plot .line-vin {
+  fill: none;
+  stroke: var(--blue);
+  stroke-width: 2;
+}
+
+.plot .line-phase,
+.plot .line-vout {
+  fill: none;
+  stroke: var(--orange);
+  stroke-width: 2;
+}
+
+.netlist {
+  margin-top: 18px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+  font-size: 0.86rem;
+}
+
+.netlist summary {
+  cursor: pointer;
+  color: var(--blue);
+  font-weight: 600;
+}
+
+.netlist pre {
+  max-height: 260px;
+  overflow: auto;
+  padding: 10px 12px;
+  background: #f6f9fc;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  white-space: pre-wrap;
+}
+
+@media (max-width: 900px) {
+  .sim-grid {
+    grid-template-columns: 1fr;
+  }
+}

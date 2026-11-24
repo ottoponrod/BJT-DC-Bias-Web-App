@@ -13,6 +13,7 @@ import math
 
 from flask import Flask, render_template, request
 
+from plots import bode_svg, transient_svg
 from spice_engine import (
     ANALYSES,
     MODEL_NAME,
@@ -106,7 +107,7 @@ def _engine_status(state="not started"):
 def _render(
     form, mode, result=None, error=None, *,
     sim_form=None, sim_result=None, sim_error=None,
-    sim_status=None, analysis=None,
+    sim_status=None, analysis=None, sim_plots=None,
 ):
     return render_template(
         "index.html",
@@ -123,6 +124,7 @@ def _render(
         sim_status=sim_status if sim_status is not None else _engine_status(),
         analysis=analysis if analysis in ANALYSES else "dc",
         sim_analysis_labels=SIM_ANALYSIS_LABELS,
+        sim_plots=sim_plots if sim_plots is not None else {},
     )
 
 
@@ -308,12 +310,19 @@ def simulate():
             analysis=analysis,
         )
 
+    plots = {}
+    if analysis == "ac" and result.ac:
+        plots["bode"] = bode_svg(result.ac, params.amplitude_v)
+    elif analysis == "transient" and result.tran:
+        plots["transient"] = transient_svg(result.tran)
+
     return _render(
         calc_form, MODE_DIVIDER,
         sim_form=form,
         sim_result=result,
         sim_status=_engine_status("success"),
         analysis=analysis,
+        sim_plots=plots,
     )
 
 
