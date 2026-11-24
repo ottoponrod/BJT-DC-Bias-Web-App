@@ -9,6 +9,7 @@ from unittest.mock import patch
 from spice_engine import (
     MODEL_DECLARATION,
     SpiceError,
+    _ac_summary,
     SpiceParams,
     ANALYSES,
     build_netlist,
@@ -82,6 +83,12 @@ Index   time            v(nin)          v(nout)
 1\t1.000000e-07\t6.283185e-06\t-3.40928e-05
 2\t1.000000e-03\t1.000000e-02\t-4.860000e-02
 """
+
+# Summary tests use complete-looking sweeps: the fixed netlist sweeps 10 Hz to
+# 10 MHz (AC) and 0 to 5 ms (transient).  The shorter AC_LOG / TRAN_LOG above
+# stay as parser fixtures and double as truncated-log regression inputs.
+AC_LOG_COMPLETE = AC_LOG + "120\t1.000000e+07\t-6.200000e+01\t-1.570796e+00\n"
+TRAN_LOG_COMPLETE = TRAN_LOG + "3\t5.000000e-03\t0.000000e+00\t0.000000e+00\n"
 
 
 class TestParseOpLog(unittest.TestCase):
@@ -255,6 +262,77 @@ class TestRunSimulationFailures(unittest.TestCase):
                     REFERENCE_PARAMS, "dc", executable="ngspice-stub"
                 )
 
+    def test_truncated_ac_sweep_raises_spice_error(self):
+        # AC_LOG ends at 10 kHz instead of the netlist's 10 MHz stop.
+        fake = FakeNgspice(AC_LOG)
+        with patch("spice_engine.subprocess.run", side_effect=fake):
+            with self.assertRaisesRegex(SpiceError, "incomplete"):
+                run_simulation(
+                    REFERENCE_PARAMS, "ac", executable="ngspice-stub"
+                )
+
+    def test_truncated_transient_sweep_raises_spice_error(self):
+        # TRAN_LOG ends at 1 ms instead of the netlist's 5 ms stop.
+        fake = FakeNgspice(TRAN_LOG)
+        with patch("spice_engine.subprocess.run", side_effect=fake):
+            with self.assertRaisesRegex(SpiceError, "incomplete"):
+                run_simulation(
+                    REFERENCE_PARAMS, "transient", executable="ngspice-stub"
+                )
+
+    def test_non_monotonic_ac_index_and_frequency_raise_spice_error(self):
+        bad_index = AC_LOG_COMPLETE.replace(
+            "120\t1.000000e+07", "80\t1.000000e+07"
+        )
+        bad_frequency = AC_LOG_COMPLETE.replace(
+            "120\t1.000000e+07", "120\t1.000000e+03"
+        )
+        for log in (bad_index, bad_frequency):
+            with patch(
+                "spice_engine.subprocess.run", side_effect=FakeNgspice(log)
+            ):
+                with self.assertRaisesRegex(SpiceError, "incomplete"):
+                    run_simulation(
+                        REFERENCE_PARAMS, "ac", executable="ngspice-stub"
+                    )
+
+    def test_non_monotonic_transient_index_and_time_raise_spice_error(self):
+        bad_index = TRAN_LOG_COMPLETE.replace("3\t5.000000e-03", "2\t5.000000e-03")
+        bad_time = TRAN_LOG_COMPLETE.replace("3\t5.000000e-03", "3\t1.000000e-04")
+        for log in (bad_index, bad_time):
+            with patch(
+                "spice_engine.subprocess.run", side_effect=FakeNgspice(log)
+            ):
+                with self.assertRaisesRegex(SpiceError, "incomplete"):
+                    run_simulation(
+                        REFERENCE_PARAMS, "transient", executable="ngspice-stub"
+                    )
+
+
+class TestAcSummaryCrossings(unittest.TestCase):
+    def test_finds_first_cutoff_on_rising_low_frequency_edge(self):
+        rows = parse_ac_log(
+            "0\t1.000000e+01\t-6.000000e+01\t0.000000e+00\n"
+            "1\t1.000000e+02\t-4.000000e+01\t0.000000e+00\n"
+            "2\t1.000000e+03\t-4.000000e+01\t0.000000e+00\n"
+            "3\t1.000000e+04\t-6.000000e+01\t0.000000e+00\n"
+        )
+
+        self.assertAlmostEqual(
+            _ac_summary(rows, REFERENCE_PARAMS)["f3db_hz"], 70.7946, delta=0.01
+        )
+
+    def test_finds_rising_cutoff_when_no_falling_edge_exists(self):
+        rows = parse_ac_log(
+            "0\t1.000000e+01\t-6.000000e+01\t0.000000e+00\n"
+            "1\t1.000000e+02\t-5.000000e+01\t0.000000e+00\n"
+            "2\t1.000000e+03\t-4.000000e+01\t0.000000e+00\n"
+        )
+
+        f3db = _ac_summary(rows, REFERENCE_PARAMS)["f3db_hz"]
+        self.assertIsNotNone(f3db)
+        self.assertAlmostEqual(f3db, 501.1872, delta=0.01)
+
 
 class TestSimulationSummary(unittest.TestCase):
     def test_dc_summary_uses_ngspice_nodes_and_derived_ic(self):
@@ -273,7 +351,7 @@ class TestSimulationSummary(unittest.TestCase):
         self.assertAlmostEqual(s["ic_ma"], 1.277541, delta=1e-5)
 
     def test_ac_summary_references_source_amplitude_and_missing_cutoff(self):
-        fake = FakeNgspice(AC_LOG)
+        fake = FakeNgspice(AC_LOG_COMPLETE)
         with patch("spice_engine.subprocess.run", side_effect=fake):
             result = run_simulation(
                 REFERENCE_PARAMS, "ac", executable="ngspice-stub"
@@ -283,8 +361,20 @@ class TestSimulationSummary(unittest.TestCase):
         self.assertAlmostEqual(s["source_amplitude_v"], 0.01)
         # Fixture is -60.9999 dBV from a 10 mV source: -60.9999 - (-40) dB.
         self.assertAlmostEqual(s["midband_gain_db"], -20.9999, delta=0.01)
+        # Every row (including the 10 MHz endpoint) stays above the -63.9999
+        # dBV target, so no -3 dB crossing exists in either direction.
         self.assertIsNone(s["f3db_hz"])
         self.assertAlmostEqual(s["phase_deg"], 0.0577, delta=0.001)
+
+    def test_transient_summary_uses_complete_sweep(self):
+        fake = FakeNgspice(TRAN_LOG_COMPLETE)
+        with patch("spice_engine.subprocess.run", side_effect=fake):
+            result = run_simulation(
+                REFERENCE_PARAMS, "transient", executable="ngspice-stub"
+            )
+
+        self.assertAlmostEqual(result.summary["peak_vin_v"], 0.01)
+        self.assertAlmostEqual(result.summary["peak_vout_v"], 0.0486)
 
 
 @unittest.skipIf(find_ngspice() is None, "ngspice is not installed")

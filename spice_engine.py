@@ -200,12 +200,15 @@ def _ac_summary(
     target_db = midband["gain_dbv"] - 3.0
     f3db = None
     for low, high in zip(rows, rows[1:]):
-        if low["gain_dbv"] >= target_db >= high["gain_dbv"]:
-            span = high["gain_dbv"] - low["gain_dbv"]
+        low_gain, high_gain = low["gain_dbv"], high["gain_dbv"]
+        # A rising low-frequency edge and a falling high-frequency edge are
+        # both valid -3 dB crossings; take the first one in sweep order.
+        if min(low_gain, high_gain) <= target_db <= max(low_gain, high_gain):
+            span = high_gain - low_gain
             if span == 0:
                 f3db = low["frequency_hz"]
             else:
-                fraction = (target_db - low["gain_dbv"]) / span
+                fraction = (target_db - low_gain) / span
                 f3db = low["frequency_hz"] * (
                     high["frequency_hz"] / low["frequency_hz"]
                 ) ** fraction
@@ -227,6 +230,39 @@ def _tran_summary(rows: list[dict[str, float]]) -> dict[str, float]:
         "peak_vin_v": max(abs(row["vin_v"]) for row in rows),
         "peak_vout_v": max(abs(row["vout_v"]) for row in rows),
     }
+
+
+def _require_complete_sweep(
+    rows: list[dict[str, float]],
+    axis: str,
+    expected_first: float,
+    expected_last: float,
+    label: str,
+) -> None:
+    """Reject a truncated table; a few parsed rows are not a completed sweep."""
+    if len(rows) < 3:
+        raise SpiceError(
+            f"incomplete {label} sweep: only {len(rows)} rows parsed; "
+            "at least 3 are required."
+        )
+    indices = [row["index"] for row in rows]
+    values = [row[axis] for row in rows]
+    if not all(math.isfinite(v) for v in indices + values):
+        raise SpiceError(f"incomplete {label} sweep: non-finite index or {axis}.")
+    if any(b <= a for a, b in zip(indices, indices[1:])):
+        raise SpiceError(f"incomplete {label} sweep: index is not increasing.")
+    if any(b <= a for a, b in zip(values, values[1:])):
+        raise SpiceError(f"incomplete {label} sweep: {axis} is not increasing.")
+    for end, expected, actual in (
+        ("first", expected_first, values[0]),
+        ("last", expected_last, values[-1]),
+    ):
+        tolerance = max(1e-12, abs(expected) * 0.01)
+        if abs(actual - expected) > tolerance:
+            raise SpiceError(
+                f"incomplete {label} sweep: {end} {axis} {actual:.6g} "
+                f"is not near {expected:.6g}."
+            )
 
 
 def run_simulation(
@@ -290,11 +326,13 @@ def run_simulation(
         ac = parse_ac_log(log_text)
         if not ac:
             raise SpiceError("Could not parse the ngspice AC sweep table.")
+        _require_complete_sweep(ac, "frequency_hz", 10.0, 10e6, "AC")
         summary = _ac_summary(ac, params)
     else:
         tran = parse_tran_log(log_text)
         if not tran:
             raise SpiceError("Could not parse the ngspice transient table.")
+        _require_complete_sweep(tran, "time_s", 0.0, 5e-3, "transient")
         summary = _tran_summary(tran)
 
     return SimulationResult(
