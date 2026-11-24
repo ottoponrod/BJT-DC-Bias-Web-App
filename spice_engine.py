@@ -110,12 +110,29 @@ def build_netlist(params: SpiceParams, analysis: str) -> str:
 
 
 def parse_op_log(text: str) -> dict[str, float]:
-    """Parse the four reference node voltages from an ``.op`` log table."""
+    """Parse the four reference node voltages from an ``.op`` log table.
+
+    Only the ``Node ... Voltage`` section is considered.  The later BJT model
+    dump uses the same identifiers (``ne``/``nc``) for model parameters, and
+    reading those would silently replace real node voltages.
+    """
     row = re.compile(
         rf"^\s*(nvcc|nb|ne|nc)\s+({_NUMBER})\s*$", re.IGNORECASE
     )
+    header = re.compile(r"^\s*Node\s+Voltage\s*$", re.IGNORECASE)
+    section_end = re.compile(
+        r"^\s*(?:Source|BJT models|Small signal)", re.IGNORECASE
+    )
     nodes: dict[str, float] = {}
+    in_node_table = False
     for line in text.splitlines():
+        if header.match(line):
+            in_node_table = True
+            continue
+        if not in_node_table:
+            continue
+        if section_end.match(line):
+            break
         match = row.match(line)
         if match:
             nodes[match.group(1).lower()] = float(match.group(2))

@@ -94,6 +94,19 @@ class TestParseOpLog(unittest.TestCase):
         self.assertAlmostEqual(parsed["nc"], 9.189410)
         self.assertEqual(set(parsed), {"nvcc", "nb", "ne", "nc"})
 
+    def test_ignores_bjt_model_parameters_that_share_node_names(self):
+        contaminated = OP_LOG + """\n BJT models (Bipolar Junction Transistor)
+      model                  qnpn
+       type                   npn
+         is                 1e-14
+         ne                   1.5
+         nc                   2.0
+"""
+        parsed = parse_op_log(contaminated)
+
+        self.assertAlmostEqual(parsed["ne"], 1.289454)
+        self.assertAlmostEqual(parsed["nc"], 9.189410)
+
     def test_returns_empty_dict_when_no_node_table_present(self):
         self.assertEqual(parse_op_log("no simulation here"), {})
 
