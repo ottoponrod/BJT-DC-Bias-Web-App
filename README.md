@@ -141,3 +141,84 @@ VB  = VE+VBE    VC = VCC−IC·RC      VCE = VC−VE
 
 DC Bias เท่านั้น — ไม่มี AC, Transient, Bode Plot, Signal Generator, SPICE
 หรือ Overlay Animation
+
+## Lab 04 — CE Amplifier Simulator (SPICE จริง)
+
+ส่วนนี้ต่อยอดจาก Lab 03 โดยเพิ่ม route `/simulate` ที่เรียก **ngspice 47**
+จริง ไม่ได้แก้สมการ `/calculate` หรือ `dc_bias.py` ของ Lab 03
+
+### ติดตั้ง ngspice (Windows)
+
+1. ดาวน์โหลด ngspice 47 (Windows 64-bit) จากหน้า release ทางการของ
+   ngspice/SourceForge แล้วแตกไฟล์ เช่น `%LOCALAPPDATA%\Programs\ngspice-47`
+2. เพิ่มโฟลเดอร์ `<install>\Spice64\bin` ลงใน PATH ของผู้ใช้
+   (System Properties → Environment Variables → User `Path` → Edit หรือ
+   `setx PATH "%PATH%;<install>\Spice64\bin"` แล้วเปิด terminal ใหม่)
+3. ตรวจสอบด้วย `where ngspice` และรัน netlist จริง 1 ไฟล์
+   (`ngspice -b -o result.log circuit.cir`) — บน Windows `--version` ไม่พิมพ์
+   ข้อความ จึงยืนยันเวอร์ชันด้วยโฟลเดอร์ 47.x และผลรัน `.op` / `.ac` / `.tran`
+4. แอปมี fallback ไปที่
+   `C:\Users\B6809737\AppData\Local\Programs\ngspice-47\Spice64\bin\ngspice.exe`
+   กรณี PATH ไม่เห็น ngspice ตอนเปิด Flask จาก GUI
+
+### ติดตั้ง dependencies และรันเซิร์ฟเวอร์
+
+```powershell
+python -m venv .venv
+.venv\Scripts\Activate.ps1
+python -m pip install -r requirements.txt
+.venv\Scripts\python.exe app.py
+```
+
+เปิด <http://127.0.0.1:5000/> ในเบราว์เซอร์ (ต้องรันผ่าน Flask เสมอ
+ห้าม double-click `templates/index.html`) ถ้าแก้ template ขณะเซิร์ฟเวอร์รัน
+ให้ restart Flask เพราะ Jinja cache template ไว้ใน process
+
+### Reproduce 1 run (DC / AC / transient)
+
+ในหน้า **Lab 04: BJT CE Amplifier Simulator** กรอกค่าอ้างอิง
+VCC 12 V, R1 100 kΩ, R2 22 kΩ, RC 2.2 kΩ, RE 1 kΩ, RL 10 kΩ,
+CIN = COUT = 10 µF, Amplitude 10 mV peak, Frequency 1 kHz, units = kΩ
+เลือก `DC operating point (.op)` / `Frequency response (.ac)` /
+`Time domain (.tran)` แล้วกด **Run Simulation**
+
+- DC: ควรเห็น VB 1.949 V, VE 1.289 V, VC 9.189 V, VCE 7.900 V, IC 1.278 mA
+- AC: ควรเห็น Bode plot (gain dB / phase deg / frequency Hz) และ
+  `run: success`; gain กลางช่วงประมาณ +4.86 dB
+- Transient: ควรเห็น Vin/Vout vs time พร้อม Peak Vin 10.00 mV,
+  Peak Vout 17.51 mV และสัญญาณ Vout กลับเฟสกับ Vin
+
+เรียก engine โดยตรงจาก root ของ repo ได้ด้วย venv Python:
+
+```python
+from spice_engine import SpiceParams, run_simulation
+
+p = SpiceParams(12, 100_000, 22_000, 2_200, 1_000, 10_000,
+                10e-6, 10e-6, 0.010, 1_000)
+for analysis in ("dc", "ac", "transient"):
+    print(analysis, run_simulation(p, analysis).summary)
+```
+
+โมเดลที่ใช้คือ `.model QNPN NPN(BF=100 IS=1e-14 VAF=100)` ซึ่งเป็น
+**self-defined reference model** ไม่ใช่โมเดลที่อาจารย์จัดให้ ผลตรวจ
+B1–B8, หลักฐานรูปภาพ และข้อจำกัดอยู่ใน [`docs/validation.md`](docs/validation.md)
+และ [`docs/captures/acceptance/`](docs/captures/acceptance/)
+(ชุดทดสอบปัจจุบัน: 94 tests OK)
+
+### AI ทำอะไร / นักศึกษาตรวจอะไร (Lab 04)
+
+**AI ทำ:** เพิ่ม `spice_engine.py` (netlist, runner, parser), route `/simulate`,
+SVG plot ที่สร้างจาก row ของ ngspice และ UI สำหรับ DC/AC/transient;
+เขียนเทสต์และบันทึกหลักฐาน B1–B8 ลงใน docs พร้อม captions
+
+**AI ทำ:** ทดสอบการเปลี่ยน RE, การเปลี่ยน amplitude, RE=0 และกรณีหา engine
+ไม่เจอ bằng Flask อีก process บน port 5001 (monkeypatch เฉพาะ in-process)
+
+**นักศึกษาตรวจ:** รัน ngspice ด้วย netlist ที่โชว์ในหน้า results แล้วเทียบ
+ค่าตาราง `.op` และกราฟกับ log ที่ได้จริง อย่าเชื่อ screenshot เพียงอย่างเดียว
+
+**นักศึกษาตรวจ:** คำนวณ gain กลางช่วงจาก `20·log10(Vout/Vin)` และอธิบาย
+ว่าทำไม Vout กลับเฟส 180° และทำไม `-3 dB` ไม่อยู่ในช่วง sweep 10 Hz–10 MHz
+
+**นักศึกษาตรวจ:** ดู `git diff` และรันชุดเทสต์ซ้ำ รวมถึงเปิดหน้า 390 px
+หลังรัน AC เพื่อยืนยันข้อบกพร่อง clipping ที่บันทึกไว้ในตาราง B8

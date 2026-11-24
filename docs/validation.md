@@ -212,4 +212,142 @@ Full suite after the UI changes: `cmd /c ".venv\Scripts\python.exe -m unittest d
 
 ### B1–B8 acceptance
 
-Full browser acceptance evidence is recorded after Task 5.
+All eight cases were executed on 24 Nov 2026 against the restarted Flask app at
+<http://127.0.0.1:5000/>. Every case followed **Navigate → fresh DOM snapshot →
+Select/Fill → Click the real submit button → Read the resulting DOM → Compare →
+Screenshot**. No URL was typed as a substitute for a form submission, and no
+result was inferred from a screenshot alone.
+
+- **Tool actually used:** real headless Chrome 157.0.8103.80 driven over the
+  Chrome DevTools Protocol WebSocket by a small stdlib Python client. The
+  in-app browser returned `[browser.disconnected]` in this subagent session,
+  and Playwright MCP is **not installed**; neither was used or claimed. Chrome
+  network events confirmed `POST /simulate → HTTP 200` on port 5000.
+- **Fresh server:** the old `app.py` processes were stopped and Flask was
+  restarted with the repo venv (`serve5000.py`, `debug=False`,
+  `use_reloader=False`). `GET /` returned HTTP 200 and the served HTML
+  contained both `Lab 04` and `sim-grid`.
+- **ngspice:** 47.x installed at
+  `C:\Users\B6809737\AppData\Local\Programs\ngspice-47\Spice64\bin\ngspice.exe`.
+  Windows `--version` switches are silent, so the version was confirmed by the
+  installed 47.x path plus successful real `.op`, `.ac`, and `.tran` batch
+  runs (engine `SimulationResult` objects were inspected directly).
+- **Self-defined transistor model (not instructor-supplied):**
+  `.model QNPN NPN(BF=100 IS=1e-14 VAF=100)`. The browser's provenance
+  disclosure shows this exact netlist line alongside the ngspice log excerpt.
+- **Reference circuit:** VCC 12 V, R1 100 kΩ, R2 22 kΩ, RC 2.2 kΩ, RE 1 kΩ,
+  RL 10 kΩ, CIN = COUT = 10 µF, source 10 mV peak at 1 kHz. Resistors were
+  submitted in kΩ, capacitors in µF, amplitude in mV and frequency in kHz;
+  the engine converts these to Ω/F/V/Hz before building the netlist.
+
+| Case | Method | Input | Expected / Reference | Observed (with units) | Evidence | Status |
+| --- | --- | --- | --- | --- | --- | --- |
+| B1 · Regression | Browser mode selector + `เปลี่ยนโหมด` + `Calculate DC Bias`; fresh DOM read after each real POST | Divider R1 100 kΩ, R2 22 kΩ, RC 2.2 kΩ, RE 1 kΩ; Fixed RB 1000 kΩ; Emitter RB 1000 kΩ, RE 1 kΩ; VCC 12 V, β 100, VBE 0.70 V | Divider IC 1.230 mA / VCE 8.052 V; Fixed IC 1.130 mA / VCE 9.514 V; Emitter IC 1.026 mA / VCE 8.705 V (Lab 03 references) | Divider IC **1.230 mA**, VCE **8.052 V**; Fixed IC **1.130 mA**, VCE **9.514 V**; Emitter IC **1.026 mA**, VCE **8.705 V**. Relevant fields changed per mode (Fixed: RB/RC only; Emitter: RB/RE/RC; Divider: R1/R2/RC/RE) | `docs/captures/acceptance/B1-divider-desktop-1280x900.png`; DOM snapshots in `acceptance-log.json` steps B1 | PASS |
+| B2 · DC SPICE | Browser `Run DC` on `/simulate` with reference circuit; compare DOM table with a fresh direct `run_simulation(SpiceParams, "dc")` and the ngspice log | Analysis `dc`; VCC 12 V, R1 100 kΩ, R2 22 kΩ, RC 2.2 kΩ, RE 1 kΩ, RL 10 kΩ, CIN/COUT 10 µF, source 10 mV / 1 kHz | VB 1.949 V, VE 1.289 V, VC 9.189 V, VCE 7.900 V, IC 1.278 mA from ngspice `.op`; model QNPN; `run: success` | DOM: VB **1.949 V**, VE **1.289 V**, VC **9.189 V**, VCE **7.900 V**, IC **1.278 mA**; status `ngspice 47 · run: success`; source `QNPN NPN(BF=100 IS=1e-14 VAF=100)`, analysis `dc`. Engine summary: VB **1.949112 V**, VE **1.289454 V**, VC **9.189410 V**, VCE **7.899956 V**, IC **1.277541 mA** | `docs/captures/acceptance/B2-dc-desktop-1280x900.png`; log excerpt `ne 1.289454e+00`, `nc 9.189410e+00`, `nb 1.949112e+00`, `nvcc 1.200000e+01`; netlist and direct engine summary below | PASS |
+| B3 · Change RE | Same DC form, only `sim_re` changed from 1 to 2 kΩ, then a second real `Run Simulation` | RE 1 kΩ → 2 kΩ; all other reference values unchanged | Operating point must change, not remain stale; fresh engine run must agree | Before VB **1.949 V**, VE **1.289 V**, VC **9.189 V**, IC **1.278 mA**; after VB **2.048 V**, VE **1.405 V**, VC **10.469 V**, VCE **9.065 V**, IC **0.696 mA**. Direct engine: VE **1.40455 V**, VC **10.46912 V**, IC **0.695855 mA** | `docs/captures/acceptance/B3-dc-re1k-before.png`, `B3-dc-re2k-after.png`; two HTTP 200 POSTs in browser network log | PASS |
+| B4 · AC | Browser `.ac` run; read axes/labels and extract SVG polylines from the live DOM; independently re-run the engine on identical `SpiceParams` and compare every point | Reference circuit; `.ac dec 40 10 10Meg`, 10 mV peak source | Bode plot with frequency (Hz, 1e1–1e7), gain (dB), phase (deg); values from real ngspice sweep | One SVG, `viewBox 0 0 860 430`; axis labels `gain (dB)`, `phase (deg)`, `frequency (Hz)`; **241** gain points and **241** phase points; midband relative gain **+4.8598 dB**, phase at 1 kHz **−179.866°**, `-3 dB point: not determined in sweep range`. Point-by-point max deviation vs fresh engine rows: **0.005 px in x**, **≤0.00499 px in y** | `docs/captures/acceptance/B4-ac-desktop-1280x900.png`; numeric row and point comparison below | PASS |
+| B5 · Transient | Browser `.tran` run; read time/voltage labels and SVG polylines; direct engine run for the same params; sign/correlation analysis of parsed rows | Reference circuit, 10 mV peak, 1 kHz; `.tran 0.01m 5m` | Vin and Vout versus time (ms, V); phase inversion; values from real ngspice run | One SVG with labels `time (ms)`, `Vin [V]`, `Vout [V]`, ticks 0/2.5/5 ms; **508** points per trace; DOM note `Peak Vin 10.00 mV, peak Vout 17.51 mV`. Parse: peak Vin **0.009998 V** at t **4.2528 ms**, Vout there **−0.017479 V**; Vin/Vout correlation over the last 1 ms = **−1.000** (inversion). Max deviation vs fresh engine rows: **≤0.00476 px in x**, **≤0.005 px in y** | `docs/captures/acceptance/B5-transient-desktop-1280x900.png`; selected parsed rows and comparison below | PASS |
+| B6 · Change source | Browser transient run at 10 mV, then only `sim_amplitude` set to 20 mV and a second real run; compare DOM notes and polylines with two engine runs | Amplitude 10 → 20 mV peak; frequency fixed at 1 kHz | Waveform/peak must follow the source setting, not a hard-coded plot | DOM peaks **10.00 mV → 20.00 mV** Vin (**×2.000**) and **17.51 mV → 35.04 mV** Vout; engine peaks **0.009998 V → 0.019997 V** Vin and **0.017511 V → 0.035042 V** Vout. 20 mV SVG: **508** points per trace, max deviation **≤0.00476 px x / 0.005 px y** | `docs/captures/acceptance/B6-transient-10mV-before.png`, `B6-transient-20mV-after.png`; comparison below | PASS |
+| B7 · Invalid / engine fail | (a) Set RE=0 in the real form and click Run; (b) second Flask on port 5001 with in-process `find_ngspice` monkeypatched to `None`, then a real browser run there | (a) RE = 0 kΩ, min constraint 0.000001; (b) reference DC run with engine discovery forced to fail | (a) native validation error and no new simulation; (b) explicit SPICE error, no result table, no `run: success` | (a) `validationMessage` exactly `Value must be greater than or equal to 0.000001.`, `checkValidity() = false`, **0** POSTs, result state stayed `idle`; (b) exact error text `การจำลอง SPICE ล้มเหลว: ngspice executable not found. Install ngspice 47 and add it to PATH.`; status `ngspice 47 · run: failed`, `data-sim-state=error`, **0** SPICE table rows, no `run: success`, real `POST /simulate` returned HTTP 200 | `docs/captures/acceptance/B7-re0-native-validation.png`, `B7-engine-unavailable-5001.png`; method and network log below | PASS |
+| B8 · UI | Desktop 1280×900 and phone 390×844 emulation; mode switching then AC run and DOM overflow measurement at both sizes | Same reference inputs, analysis `ac`, mode switches Fixed → Divider | Graphs, units and buttons readable; no important content clipped | **Desktop:** buttons and units readable, plot visible, `documentElement.scrollWidth 1280 px = viewport 1280 px` → PASS. **Phone (with result):** `screen.width 390 px`, but after the AC result `innerWidth = scrollWidth = 706 px`; the 640 px min-width SVG forces the single-column grid/card to 690 px, so the right side of the results card is clipped at 390 px. Phone root page before simulation was 390 px wide and not clipped | `docs/captures/acceptance/B8-desktop-1280x900.png`, `B8-mobile-390x844-root.png`, `B8-mobile-390x844.png`, `B8-mobile-390x844-full.png` (706 px wide full-page capture) | **FAIL** (mobile clipping with results; desktop PASS) |
+
+#### Provenance proof for the plotted data (B4, B5, B6)
+
+For each plotted case the exact form values were converted to a
+`SpiceParams(vcc_v=12, r1_ohm=100000, r2_ohm=22000, rc_ohm=2200,
+re_ohm=1000, rl_ohm=10000, cin_f=1e-5, cout_f=1e-5, amplitude_v=0.01,
+frequency_hz=1000)` (or `amplitude_v=0.02` for B6) and passed to
+`spice_engine.run_simulation`. The returned `SimulationResult.ac` / `.tran`
+lists were inspected, then converted with the plot's documented affine/log
+mapping and compared with the `points` attribute of the `<polyline>` elements
+read from the rendered `/simulate` DOM. Matching point counts plus sub-pixel
+deviation (the SVG rounds coordinates to two decimals) proves the plotted
+lines are the parsed ngspice rows, not source-code constants or a mock plot.
+
+Selected AC rows from the fresh `run_simulation(..., "ac")` result:
+
+| Frequency (Hz) | `gain_dbv` (dBV) | `phase_deg` (°) | Relative gain (dB, −20·log10(0.01 V) = +40 dB) |
+| --- | --- | --- | --- |
+| 10 | −35.2594 | −166.677 | +4.7406 |
+| 1000 | −35.1402 | −179.866 | +4.8598 |
+| 10000 | −35.1402 | −179.987 | +4.8598 |
+| 10000000 | −35.1402 | −179.9998 | +4.8598 |
+
+Selected transient rows from the fresh `run_simulation(..., "transient")`
+result:
+
+| Time (s) | Vin (V) | Vout (V) |
+| --- | --- | --- |
+| 0 | 0 | 0 |
+| 0.0024728 | +0.001700719 | −0.00291846 |
+| 0.0042528 | +0.009998452 | −0.0174789 |
+| 0.0050000 | ≈ 0 (−1.22e−17) | −0.0000242388 |
+
+| Comparison | Engine rows | SVG points | Max Δx (px) | Max Δy (px) |
+| --- | --- | --- | --- | --- |
+| B4 gain polyline | 241 | 241 | 0.005 | 0.00467 |
+| B4 phase polyline | 241 | 241 | 0.005 | 0.00499 |
+| B5 Vin polyline | 508 | 508 | 0.00476 | 0.00487 |
+| B5 Vout polyline | 508 | 508 | 0.00476 | 0.005 |
+| B6 Vin polyline at 20 mV | 508 | 508 | 0.00476 | 0.005 |
+| B6 Vout polyline at 20 mV | 508 | 508 | 0.00476 | 0.005 |
+
+The DC netlist used by the engine contains exactly
+`.model QNPN NPN(BF=100 IS=1e-14 VAF=100)`, and its log excerpt contains the
+`.op` node table `ne 1.289454e+00`, `nc 9.189410e+00`, `nb 1.949112e+00`,
+`nvcc 1.200000e+01`, reproducing the displayed DC values.
+
+#### Engine-failure method and exact evidence (B7)
+
+A temporary script outside the repository imported the unchanged `app` module
+and rebound both `app.find_ngspice` and `spice_engine.find_ngspice` to
+`lambda: None`, then served the same application on port 5001 with
+`debug=False, use_reloader=False`. No installed executable was renamed, moved
+or modified; the normal server on port 5000 kept working with ngspice. The
+browser navigated to `http://127.0.0.1:5001/`, filled the reference DC form and
+clicked the real **Run Simulation** button. Chrome recorded
+`POST http://127.0.0.1:5001/simulate → 200`. The rendered page showed the exact
+error text above twice (form alert and results alert), the compact status
+`ngspice 47 · run: failed`, `data-sim-state="error"`, no `.spice-table` rows and
+no source line or `run: success` string. For the RE=0 sub-check the browser's
+native constraint (`min="0.000001"`) stopped submission before any POST, so no
+server-side RE=0 error was exercised; this is recorded as the native validation
+path rather than an unobserved server error.
+
+#### Limitations and NOT RUN
+
+- The QNPN model is **self-defined** for this lab exercise; it is not an
+  instructor-supplied or instructor-verified model. Results depend on its
+  `BF=100`, `IS=1e-14`, `VAF=100` parameters.
+- The Lab 03 analytical panel still uses the β/VBE forward-active
+  approximation; it intentionally differs from SPICE (for example Divider
+  IC 1.230 mA versus ngspice IC 1.278 mA).
+- The AC sweep spans 10 Hz–10 MHz. The low-frequency −3 dB corner falls below
+  the sweep start, so the UI correctly reports `-3 dB point: not determined in
+  sweep range`; midband relative gain is about +4.86 dB (≈1.75 V/V).
+- The transient plot is AC-coupled at the collector through COUT/RL; Vout is
+  centred near 0 V and inverted relative to Vin. The phase-inversion statement
+  is based on parsed row signs and a −1.000 correlation, not only on the image.
+- **Known UI defect (B8 FAIL):** with simulation results present at 390 px,
+  the 640 px minimum-width plot SVG makes the single-column grid child 690 px
+  wide (`documentElement.scrollWidth = 706 px`), clipping the right side of the
+  results card. Per Task 5 scope no application/CSS code was changed; this is
+  reported as FAIL rather than silently fixed.
+- **NOT RUN:** no B1–B8 case was left unrun. The Task 4 Impeccable overlay
+  attempt (recorded above) remains unavailable in this isolated session and is
+  not part of the B1–B8 acceptance.
+
+#### Capture index
+
+`docs/captures/acceptance/` contains: `B1-divider-desktop-1280x900.png`,
+`B2-dc-desktop-1280x900.png`, `B3-dc-re1k-before.png`, `B3-dc-re2k-after.png`,
+`B4-ac-desktop-1280x900.png`, `B5-transient-desktop-1280x900.png`,
+`B6-transient-10mV-before.png`, `B6-transient-20mV-after.png`,
+`B7-re0-native-validation.png`, `B7-engine-unavailable-5001.png`,
+`B8-desktop-1280x900.png`, `B8-desktop-1280x900-full.png`,
+`B8-mobile-390x844-root.png`, `B8-mobile-390x844.png`, and
+`B8-mobile-390x844-full.png`.
+
+Final full suite after all acceptance work:
+`cmd /c ".venv\Scripts\python.exe -m unittest discover -s tests"` →
+`Ran 94 tests in 1.354s`, `OK`.
