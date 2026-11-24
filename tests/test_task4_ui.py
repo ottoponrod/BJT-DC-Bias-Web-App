@@ -114,6 +114,17 @@ class Task4SourceTests(unittest.TestCase):
         status_rule = css[css.index(".sim-status {"):css.index(".sim-status[data-state=")]
         self.assertNotIn("border-left", status_rule)
 
+    def test_mobile_sim_grid_contains_the_min_width_plot_svg(self):
+        css = (ROOT / "static" / "style.css").read_text(encoding="utf-8")
+        start = css.index("@media (max-width: 900px)")
+        media = css[start:css.index("\n}", start)]
+
+        # A 1fr track's automatic minimum is the 640px SVG's min-content width,
+        # which expands both grid children past a 390px phone viewport.
+        self.assertIn("grid-template-columns: minmax(0, 1fr)", media)
+        self.assertIn(".sim-grid > *", media)
+        self.assertIn("min-width: 0", media)
+
 
 if __name__ == "__main__":
     unittest.main()

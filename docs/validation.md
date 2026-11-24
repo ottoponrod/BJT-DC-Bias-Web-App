@@ -249,7 +249,19 @@ result was inferred from a screenshot alone.
 | B5 · Transient | Browser `.tran` run; read time/voltage labels and SVG polylines; direct engine run for the same params; sign/correlation analysis of parsed rows | Reference circuit, 10 mV peak, 1 kHz; `.tran 0.01m 5m` | Vin and Vout versus time (ms, V); phase inversion; values from real ngspice run | One SVG with labels `time (ms)`, `Vin [V]`, `Vout [V]`, ticks 0/2.5/5 ms; **508** points per trace; DOM note `Peak Vin 10.00 mV, peak Vout 17.51 mV`. Parse: peak Vin **0.009998 V** at t **4.2528 ms**, Vout there **−0.017479 V**; Vin/Vout correlation over the last 1 ms = **−1.000** (inversion). Max deviation vs fresh engine rows: **≤0.00476 px in x**, **≤0.005 px in y** | `docs/captures/acceptance/B5-transient-desktop-1280x900.png`; selected parsed rows and comparison below | PASS |
 | B6 · Change source | Browser transient run at 10 mV, then only `sim_amplitude` set to 20 mV and a second real run; compare DOM notes and polylines with two engine runs | Amplitude 10 → 20 mV peak; frequency fixed at 1 kHz | Waveform/peak must follow the source setting, not a hard-coded plot | DOM peaks **10.00 mV → 20.00 mV** Vin (**×2.000**) and **17.51 mV → 35.04 mV** Vout; engine peaks **0.009998 V → 0.019997 V** Vin and **0.017511 V → 0.035042 V** Vout. 20 mV SVG: **508** points per trace, max deviation **≤0.00476 px x / 0.005 px y** | `docs/captures/acceptance/B6-transient-10mV-before.png`, `B6-transient-20mV-after.png`; comparison below | PASS |
 | B7 · Invalid / engine fail | (a) Set RE=0 in the real form and click Run; (b) second Flask on port 5001 with in-process `find_ngspice` monkeypatched to `None`, then a real browser run there | (a) RE = 0 kΩ, min constraint 0.000001; (b) reference DC run with engine discovery forced to fail | (a) native validation error and no new simulation; (b) explicit SPICE error, no result table, no `run: success` | (a) `validationMessage` exactly `Value must be greater than or equal to 0.000001.`, `checkValidity() = false`, **0** POSTs, result state stayed `idle`; (b) exact error text `การจำลอง SPICE ล้มเหลว: ngspice executable not found. Install ngspice 47 and add it to PATH.`; status `ngspice 47 · run: failed`, `data-sim-state=error`, **0** SPICE table rows, no `run: success`, real `POST /simulate` returned HTTP 200 | `docs/captures/acceptance/B7-re0-native-validation.png`, `B7-engine-unavailable-5001.png`; method and network log below | PASS |
-| B8 · UI | Desktop 1280×900 and phone 390×844 emulation; mode switching then AC run and DOM overflow measurement at both sizes | Same reference inputs, analysis `ac`, mode switches Fixed → Divider | Graphs, units and buttons readable; no important content clipped | **Desktop:** buttons and units readable, plot visible, `documentElement.scrollWidth 1280 px = viewport 1280 px` → PASS. **Phone (with result):** `screen.width 390 px`, but after the AC result `innerWidth = scrollWidth = 706 px`; the 640 px min-width SVG forces the single-column grid/card to 690 px, so the right side of the results card is clipped at 390 px. Phone root page before simulation was 390 px wide and not clipped | `docs/captures/acceptance/B8-desktop-1280x900.png`, `B8-mobile-390x844-root.png`, `B8-mobile-390x844.png`, `B8-mobile-390x844-full.png` (706 px wide full-page capture) | **FAIL** (mobile clipping with results; desktop PASS) |
+| B8 · UI | Desktop 1280×900 and phone 390×844 emulation; mode switching then AC run and DOM overflow measurement at both sizes | Same reference inputs, analysis `ac`, mode switches Fixed → Divider | Graphs, units and buttons readable; no important content clipped | **Desktop:** buttons and units readable, plot visible; `innerWidth 1280 px`, `documentElement.scrollWidth 1280 px`, grid 1248 px, results 868 px, form 360 px, `.plot-scroll` clientWidth 818 px = SVG 818 px → PASS. **Phone (with result):** `innerWidth 390 px`, `documentElement.scrollWidth 390 px`, `bodyScrollWidth 390 px`; grid, results and form all 358 px; `.plot-scroll` clientWidth 308 px with internal `scrollWidth 640 px` (max scrollLeft 332 px); 640 px Bode SVG and both 241-point traces remain visible inside the scroller after `scrollLeft = 200 px`, and no element outside `.plot-scroll` extends past 390 px. Root page 390 px, not clipped | `docs/captures/acceptance/B8-desktop-1280x900.png`, `B8-mobile-390x844-root.png`, `B8-mobile-390x844.png`, `B8-mobile-390x844-full.png` (390 px wide), `B8-mobile-390x844-plot-scrolled.png` | **PASS** (desktop and phone; internal plot scroll is intended) |
+
+#### B8 re-check after the fix
+
+The first acceptance pass recorded B8 as FAIL: with an AC result at 390 px the
+640 px `min-width` plot made the `1fr` grid track's automatic minimum 640 px,
+expanding both cards to 690 px and the page to 706 px. The CSS was fixed inside
+the existing `@media (max-width: 900px)` block (`grid-template-columns:
+minmax(0, 1fr)` and `min-width: 0` on `.sim-grid > *`) with a regression test in
+`tests/test_task4_ui.py`. B8 was then re-run end-to-end in the same real headless
+Chrome/CDP setup (390×844, phone emulation, mode switches, reference AC run):
+the measurements above replaced the failing ones and all B8 phone screenshots
+were recaptured. No plot data or application code changed.
 
 #### Provenance proof for the plotted data (B4, B5, B6)
 
@@ -328,11 +340,12 @@ path rather than an unobserved server error.
 - The transient plot is AC-coupled at the collector through COUT/RL; Vout is
   centred near 0 V and inverted relative to Vin. The phase-inversion statement
   is based on parsed row signs and a −1.000 correlation, not only on the image.
-- **Known UI defect (B8 FAIL):** with simulation results present at 390 px,
-  the 640 px minimum-width plot SVG makes the single-column grid child 690 px
-  wide (`documentElement.scrollWidth = 706 px`), clipping the right side of the
-  results card. Per Task 5 scope no application/CSS code was changed; this is
-  reported as FAIL rather than silently fixed.
+- **B8 mobile clipping resolved:** the earlier 706 px page width came from the
+  `1fr` track's automatic minimum under the 640 px plot SVG. The mobile media
+  query now uses `minmax(0, 1fr)` and `min-width: 0` on `.sim-grid > *`, so at
+  390 px the page and cards are 390/358 px wide; the Bode plot scrolls *inside*
+  its 308 px wrapper (640 px SVG) instead of overflowing the page. Intended
+  internal scrolling remains; no important content is clipped.
 - **NOT RUN:** no B1–B8 case was left unrun. The Task 4 Impeccable overlay
   attempt (recorded above) remains unavailable in this isolated session and is
   not part of the B1–B8 acceptance.
@@ -345,9 +358,11 @@ path rather than an unobserved server error.
 `B6-transient-10mV-before.png`, `B6-transient-20mV-after.png`,
 `B7-re0-native-validation.png`, `B7-engine-unavailable-5001.png`,
 `B8-desktop-1280x900.png`, `B8-desktop-1280x900-full.png`,
-`B8-mobile-390x844-root.png`, `B8-mobile-390x844.png`, and
-`B8-mobile-390x844-full.png`.
+`B8-mobile-390x844-root.png`, `B8-mobile-390x844.png`,
+`B8-mobile-390x844-full.png` (recaptured at 390 px after the fix), and
+`B8-mobile-390x844-plot-scrolled.png` (Bode trace inside the horizontal
+scroller).
 
-Final full suite after all acceptance work:
+Final full suite after the B8 fix and all acceptance work:
 `cmd /c ".venv\Scripts\python.exe -m unittest discover -s tests"` →
-`Ran 94 tests in 1.354s`, `OK`.
+`Ran 95 tests in 1.319s`, `OK`.
