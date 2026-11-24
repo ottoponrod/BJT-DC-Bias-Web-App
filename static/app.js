@@ -53,7 +53,11 @@
     }
 
     var originalLabel = button.textContent;
-    var originalStatus = status ? status.cloneNode(true) : null;
+    var originalStatusChildren = status
+      ? Array.from(status.childNodes, function (node) {
+          return node.cloneNode(true);
+        })
+      : null;
 
     form.addEventListener("submit", function () {
       button.disabled = true;
@@ -85,8 +89,13 @@
         /* Ignore disabled storage. */
       }
 
-      if (status && originalStatus) {
-        status.replaceChildren(originalStatus.cloneNode(true));
+      if (status && originalStatusChildren) {
+        status.replaceChildren.apply(
+          status,
+          originalStatusChildren.map(function (node) {
+            return node.cloneNode(true);
+          })
+        );
         status.dataset.state = results.getAttribute("data-sim-state") || "idle";
       }
       if (wasPending) {

@@ -95,6 +95,16 @@ class Task4SourceTests(unittest.TestCase):
         self.assertIn("pageshow", script)
         self.assertNotIn("innerHTML", script)
 
+    def test_status_reset_does_not_clone_the_status_element_into_itself(self):
+        script = (ROOT / "static" / "app.js").read_text(encoding="utf-8")
+
+        # The pending reset must restore the status element's children, never
+        # insert a clone of #sim-status (with its id and live region) into
+        # itself, which would create duplicate ids on every pageshow.
+        self.assertIn("Array.from(status.childNodes", script)
+        self.assertNotIn("status.cloneNode", script)
+        self.assertIn("replaceChildren", script)
+
     def test_css_fixes_intermediate_layout_and_status_border(self):
         css = (ROOT / "static" / "style.css").read_text(encoding="utf-8")
 
