@@ -26,11 +26,14 @@
 
     <div class="field">
       <label for="mode">โหมดไบอัส</label>
-      <select id="mode" name="mode">
-        <option value="divider" {% if mode == "divider" %}selected{% endif %}>Voltage Divider Bias</option>
-        <option value="fixed" {% if mode == "fixed" %}selected{% endif %}>Fixed Bias</option>
-        <option value="emitter" {% if mode == "emitter" %}selected{% endif %}>Emitter Bias (แหล่งจ่ายเดียว)</option>
-      </select>
+      <div class="field-control">
+        <select id="mode" name="mode" aria-describedby="mode-hint">
+          <option value="divider" {% if mode == "divider" %}selected{% endif %}>Voltage Divider Bias</option>
+          <option value="fixed" {% if mode == "fixed" %}selected{% endif %}>Fixed Bias</option>
+          <option value="emitter" {% if mode == "emitter" %}selected{% endif %}>Emitter Bias (แหล่งจ่ายเดียว)</option>
+        </select>
+        <p class="field-hint" id="mode-hint">กด “เปลี่ยนโหมด” เพื่อสลับฟอร์ม (ไม่คำนวณค่า)</p>
+      </div>
     </div>
 
     <div class="field">
@@ -97,7 +100,7 @@
 
     <div class="actions">
       <button type="submit" name="action" value="calculate">Calculate DC Bias</button>
-      <button type="submit" name="action" value="change_mode" formnovalidate>เปลี่ยนโหมด</button>
+      <button type="submit" name="action" value="change_mode" formnovalidate aria-describedby="mode-hint">เปลี่ยนโหมด</button>
     </div>
   </form>
 
@@ -240,7 +243,8 @@
   {% endif %}
 
   <section class="card">
-    <h2>ผลลัพธ์ DC Bias — {{ mode_label }}</h2>
+    <h2>ผลลัพธ์ DC Bias</h2>
+    <p class="result-mode">{{ mode_label }}</p>
 
     {% if result %}
     {% if result.region == "cutoff" %}
@@ -291,7 +295,8 @@
     </ul>
     {% endif %}
     {% else %}
-    <p class="placeholder">กรอกค่าอุปกรณ์แล้วกด Calculate DC Bias เพื่อดูผลลัพธ์</p>
+    <p class="placeholder">กรอกค่าอุปกรณ์แล้วกด <strong>Calculate DC Bias</strong></p>
+    <p class="placeholder-detail">ผลลัพธ์จะแสดงในพื้นที่นี้</p>
     {% endif %}
   </section>
 </main>
@@ -317,68 +322,100 @@
       <p class="alert" role="alert">{{ sim_error }}</p>
       {% endif %}
 
-      <div class="field">
-        <label for="sim_analysis">Analysis</label>
-        <select id="sim_analysis" name="sim_analysis">
-          <option value="dc" {% if analysis == "dc" %}selected{% endif %}>DC operating point (.op)</option>
-          <option value="ac" {% if analysis == "ac" %}selected{% endif %}>Frequency response (.ac)</option>
-          <option value="transient" {% if analysis == "transient" %}selected{% endif %}>Time domain (.tran)</option>
-        </select>
-      </div>
+      <fieldset class="sim-group">
+        <legend>Analysis</legend>
+        <div class="field">
+          <label for="sim_analysis">Run</label>
+          <select id="sim_analysis" name="sim_analysis">
+            <option value="dc" {% if analysis == "dc" %}selected{% endif %}>DC operating point (.op)</option>
+            <option value="ac" {% if analysis == "ac" %}selected{% endif %}>Frequency response (.ac)</option>
+            <option value="transient" {% if analysis == "transient" %}selected{% endif %}>Time domain (.tran)</option>
+          </select>
+        </div>
+      </fieldset>
 
-      <div class="field">
-        <label for="sim_vcc">VCC [V]</label>
-        <input id="sim_vcc" name="sim_vcc" value="{{ sim_form.vcc }}" inputmode="decimal">
-      </div>
-      {% for field, label in [
-          ("r1", "R1"), ("r2", "R2"), ("rc", "RC"),
-          ("re", "RE"), ("rl", "RL")
-      ] %}
-      <div class="field">
-        <label for="sim_{{ field }}">{{ label }}
-          [{{ "kΩ" if sim_form.sim_unit == "kilo" else "Ω" }}]</label>
-        <input id="sim_{{ field }}" name="sim_{{ field }}"
-               value="{{ sim_form[field] }}" inputmode="decimal">
-      </div>
-      {% endfor %}
+      <fieldset class="sim-group">
+        <legend>Bias network</legend>
+        <div class="field">
+          <label for="sim_vcc">VCC [V]</label>
+          <input id="sim_vcc" name="sim_vcc" type="number" min="0.000001" step="any"
+                 value="{{ sim_form.vcc }}" required>
+        </div>
+        <div class="sim-fields">
+          {% for field, label in [
+              ("r1", "R1"), ("r2", "R2"), ("rc", "RC"),
+              ("re", "RE"), ("rl", "RL")
+          ] %}
+          <div class="field">
+            <label for="sim_{{ field }}">{{ label }}
+              [{{ "kΩ" if sim_form.sim_unit == "kilo" else "Ω" }}]</label>
+            <input id="sim_{{ field }}" name="sim_{{ field }}" type="number"
+                   min="0.000001" step="any" value="{{ sim_form[field] }}" required>
+          </div>
+          {% endfor %}
+        </div>
+      </fieldset>
 
-      <div class="field">
-        <label for="sim_cin">CIN [µF]</label>
-        <input id="sim_cin" name="sim_cin" value="{{ sim_form.cin }}" inputmode="decimal">
-      </div>
-      <div class="field">
-        <label for="sim_cout">COUT [µF]</label>
-        <input id="sim_cout" name="sim_cout" value="{{ sim_form.cout }}" inputmode="decimal">
-      </div>
-      <div class="field">
-        <label for="sim_amplitude">Source amplitude [mV peak]</label>
-        <input id="sim_amplitude" name="sim_amplitude"
-               value="{{ sim_form.amplitude }}" inputmode="decimal">
-      </div>
-      <div class="field">
-        <label for="sim_frequency">Source frequency [kHz]</label>
-        <input id="sim_frequency" name="sim_frequency"
-               value="{{ sim_form.frequency }}" inputmode="decimal">
-      </div>
-      <div class="field">
-        <label for="sim_unit">Resistor unit</label>
-        <select id="sim_unit" name="sim_unit">
-          <option value="kilo" {% if sim_form.sim_unit != "ohm" %}selected{% endif %}>kΩ</option>
-          <option value="ohm" {% if sim_form.sim_unit == "ohm" %}selected{% endif %}>Ω</option>
-        </select>
-      </div>
+      <fieldset class="sim-group">
+        <legend>Coupling capacitors</legend>
+        <div class="sim-fields">
+          <div class="field">
+            <label for="sim_cin">CIN [µF]</label>
+            <input id="sim_cin" name="sim_cin" type="number" min="0.000001" step="any"
+                   value="{{ sim_form.cin }}" required>
+          </div>
+          <div class="field">
+            <label for="sim_cout">COUT [µF]</label>
+            <input id="sim_cout" name="sim_cout" type="number" min="0.000001" step="any"
+                   value="{{ sim_form.cout }}" required>
+          </div>
+        </div>
+      </fieldset>
+
+      <fieldset class="sim-group">
+        <legend>Source &amp; sweep</legend>
+        <div class="field">
+          <label for="sim_amplitude">Amplitude [mV peak]</label>
+          <input id="sim_amplitude" name="sim_amplitude" type="number" min="0.000001"
+                 step="any" value="{{ sim_form.amplitude }}" required>
+        </div>
+        <div class="field">
+          <label for="sim_frequency">Frequency [kHz]</label>
+          <input id="sim_frequency" name="sim_frequency" type="number" min="0.000001"
+                 step="any" value="{{ sim_form.frequency }}" required>
+        </div>
+      </fieldset>
+
+      <fieldset class="sim-group">
+        <legend>Units</legend>
+        <div class="field">
+          <label for="sim_unit">Resistors</label>
+          <select id="sim_unit" name="sim_unit">
+            <option value="kilo" {% if sim_form.sim_unit != "ohm" %}selected{% endif %}>kΩ</option>
+            <option value="ohm" {% if sim_form.sim_unit == "ohm" %}selected{% endif %}>Ω</option>
+          </select>
+        </div>
+      </fieldset>
 
       <div class="actions">
-        <button type="submit">Run Simulation</button>
+        <button type="submit" class="sim-run">Run Simulation</button>
       </div>
     </form>
 
+    {% set status_parts = sim_status.split(' | ') %}
     <div class="card sim-results"
-         data-sim-state="{% if sim_error %}error{% elif sim_result %}success{% else %}idle{% endif %}">
-      <h3>SPICE results</h3>
-      <p class="sim-status"
-         data-state="{% if sim_error %}error{% elif sim_result %}success{% else %}idle{% endif %}"
-         id="sim-status">{{ sim_status }}</p>
+         data-sim-state="{% if sim_error %}error{% elif sim_result %}success{% else %}idle{% endif %}"
+         aria-busy="false">
+      <h3 id="sim-results-heading" tabindex="-1">SPICE results</h3>
+      <div id="sim-status" class="sim-status"
+           data-state="{% if sim_error %}error{% elif sim_result %}success{% else %}idle{% endif %}"
+           role="status" aria-live="polite">
+        <span class="status-main">{{ status_parts[0] }} · {{ status_parts[-1] }}</span>
+        <details class="engine-details">
+          <summary>Engine &amp; model</summary>
+          <code>{{ status_parts[1] }} | {{ status_parts[2] }}</code>
+        </details>
+      </div>
 
       {% if sim_error %}
       <p class="alert sim-alert" role="alert">{{ sim_error }}</p>
@@ -417,7 +454,12 @@
         Gain is relative to the {{ "%.1f"|format(sim_result.summary.source_amplitude_v * 1000) }} mV
         source; SPICE phase is converted from radians to degrees.
       </p>
-      {% if sim_plots.bode %}{{ sim_plots.bode|safe }}{% endif %}
+      {% if sim_plots.bode %}
+      <div class="plot-scroll" role="region" aria-label="Bode plot; scroll horizontally to view full width">
+        {{ sim_plots.bode|safe }}
+      </div>
+      <p class="plot-hint">Scroll horizontally to view the full plot.</p>
+      {% endif %}
       {% endif %}
 
       {% if sim_result.tran %}
@@ -426,25 +468,38 @@
         Peak Vin {{ "%.2f"|format(sim_result.summary.peak_vin_v * 1000) }} mV,
         peak Vout {{ "%.2f"|format(sim_result.summary.peak_vout_v * 1000) }} mV.
       </p>
-      {% if sim_plots.transient %}{{ sim_plots.transient|safe }}{% endif %}
+      {% if sim_plots.transient %}
+      <div class="plot-scroll" role="region" aria-label="Transient plot; scroll horizontally to view full width">
+        {{ sim_plots.transient|safe }}
+      </div>
+      <p class="plot-hint">Scroll horizontally to view the full plot.</p>
+      {% endif %}
       {% endif %}
 
       <details class="netlist">
         <summary>Netlist and log excerpt (reproducibility)</summary>
+        <p class="source-label">Netlist</p>
         <pre>{{ sim_result.netlist }}</pre>
+        <p class="source-label">ngspice log excerpt</p>
         <pre>{{ sim_result.log_excerpt }}</pre>
       </details>
       {% else %}
-      <p class="placeholder">เลือก analysis แล้วกด Run Simulation เพื่อดูผลจาก ngspice จริง</p>
+      <p class="placeholder">เลือก analysis แล้วกด <strong>Run Simulation</strong></p>
+      <p class="placeholder-detail">ผลลัพธ์ที่แสดงมาจาก ngspice จริงเท่านั้น</p>
       {% endif %}
     </div>
   </div>
 </section>
 
 <footer class="goal-strip">
-  <h2>Week 3 Goal</h2>
-  <p>เพิ่มโหมดไบอัสให้เว็บแอปเดิม: Voltage Divider, Fixed Bias และ Emitter Bias
-     พร้อมแปลงหน่วย ตรวจสอบอินพุต และตรวจผลด้วยเบราว์เซอร์จริง (A1–A5)</p>
+  <h2>Goal</h2>
+  <p>Lab 03 — analytical DC bias (Voltage Divider / Fixed / Emitter).
+     Lab 04 — real ngspice DC / AC / transient results for one reference CE amplifier.</p>
+  <details class="assignment-context">
+    <summary>Assignment context</summary>
+    <p>เพิ่มโหมดไบอัสให้เว็บแอปเดิม: Voltage Divider, Fixed Bias และ Emitter Bias
+       พร้อมแปลงหน่วย ตรวจสอบอินพุต และตรวจผลด้วยเบราว์เซอร์จริง (A1–A5)</p>
+  </details>
 </footer>
 <script src="{{ url_for('static', filename='app.js') }}" defer></script>
 </body>
